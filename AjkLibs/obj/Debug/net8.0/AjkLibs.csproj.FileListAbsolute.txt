@@ -1,0 +1,12 @@
+D:\Source\AjkLibs\AjkLibs\obj\Debug\net8.0\AjkLibs.GeneratedMSBuildEditorConfig.editorconfig
+D:\Source\AjkLibs\AjkLibs\obj\Debug\net8.0\AjkLibs.AssemblyInfoInputs.cache
+D:\Source\AjkLibs\AjkLibs\obj\Debug\net8.0\AjkLibs.AssemblyInfo.cs
+D:\Source\AjkLibs\AjkLibs\obj\Debug\net8.0\AjkLibs.csproj.CoreCompileInputs.cache
+D:\Source\AjkLibs\AjkLibs\obj\Debug\net8.0\AjkLibs.sourcelink.json
+D:\Source\AjkLibs\AjkLibs\bin\Debug\net8.0\AjkLibs.deps.json
+D:\Source\AjkLibs\AjkLibs\bin\Debug\net8.0\AjkLibs.dll
+D:\Source\AjkLibs\AjkLibs\bin\Debug\net8.0\AjkLibs.pdb
+D:\Source\AjkLibs\AjkLibs\obj\Debug\net8.0\AjkLibs.dll
+D:\Source\AjkLibs\AjkLibs\obj\Debug\net8.0\refint\AjkLibs.dll
+D:\Source\AjkLibs\AjkLibs\obj\Debug\net8.0\AjkLibs.pdb
+D:\Source\AjkLibs\AjkLibs\obj\Debug\net8.0\ref\AjkLibs.dll

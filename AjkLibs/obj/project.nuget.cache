@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "dgSpecHash": "ughmEXrPCoM=",
+  "success": true,
+  "projectFilePath": "D:\\Source\\AjkLibs\\AjkLibs\\AjkLibs.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\tomok\\.nuget\\packages\\microsoft.windowsdesktop.app.ref\\8.0.25\\microsoft.windowsdesktop.app.ref.8.0.25.nupkg.sha512",
+    "C:\\Users\\tomok\\.nuget\\packages\\microsoft.netcore.app.ref\\8.0.25\\microsoft.netcore.app.ref.8.0.25.nupkg.sha512",
+    "C:\\Users\\tomok\\.nuget\\packages\\microsoft.aspnetcore.app.ref\\8.0.25\\microsoft.aspnetcore.app.ref.8.0.25.nupkg.sha512"
+  ],
+  "logs": []
+}
