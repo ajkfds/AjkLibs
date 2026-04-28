@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 
@@ -126,7 +126,26 @@ public class FileBasedPipe
         }
     }
 
-    public void InitializeAsReceiver() => File.WriteAllText(_ackPath, "0");
+    public void InitializeAsReceiver()
+    {
+        // リブート時に備えて、既存のackファイルから最終処理済みIDを読み取る
+        if (File.Exists(_ackPath))
+        {
+            try
+            {
+                var ackStr = File.ReadAllText(_ackPath);
+                if (long.TryParse(ackStr, out long lastProcessed))
+                {
+                    _lastProcessedId = lastProcessed;
+                    return;
+                }
+            }
+            catch (IOException) { /* ロック中の場合はデフォルトの0から開始 */ }
+        }
+        // ackファイルが存在しない、または読み取り失敗の場合は新規作成
+        _lastProcessedId = 0;
+        File.WriteAllText(_ackPath, "0");
+    }
 
     // --- 送信機能 ---
     public void Enqueue(BasePayload payload)
