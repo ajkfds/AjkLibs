@@ -96,6 +96,13 @@ public class FileBasedPipe
     private long _nextId = 1;
     private long _lastProcessedId = 0;
 
+    /// <summary>
+    /// キャッシュバイパスモードを有効にする
+    /// 有効時、ファイル操作ごとに新しいファイルハンドルをオープンし、WriteThroughを使用します
+    /// Linuxでのファイルシステムキャッシュ（ページキャッシュ）による遅延を避ける場合に有効です
+    /// </summary>
+    public bool BypassCache { get; set; } = false;
+
     public FileBasedPipe(string dataPath, string ackPath, JsonSerializerOptions options)
     {
         _dataPath = dataPath;
@@ -104,8 +111,8 @@ public class FileBasedPipe
     }
 
     public void InitializeAsSender() {
-        // 1. 既存のデータファイルをクリア（通信リフレッシュ）
-        using (var fs = new FileStream(_dataPath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite))
+        // 1. データファイルを作成（長さ0）→ 起動時にファイルが存在することで終了と区別可能
+        using (var fs = CreateWriteStream(_dataPath))
         {
             fs.SetLength(0);
         }
@@ -115,7 +122,12 @@ public class FileBasedPipe
         {
             try
             {
-                var ackStr = File.ReadAllText(_ackPath);
+                string ackStr;
+                using (var fs = CreateReadStream(_ackPath))
+                using (var reader = new StreamReader(fs))
+                {
+                    ackStr = reader.ReadToEnd();
+                }
                 if (long.TryParse(ackStr, out long lastAck))
                 {
                     // 相手の最終既読IDの次からカウントを開始
@@ -133,7 +145,12 @@ public class FileBasedPipe
         {
             try
             {
-                var ackStr = File.ReadAllText(_ackPath);
+                string ackStr;
+                using (var fs = CreateReadStream(_ackPath))
+                using (var reader = new StreamReader(fs))
+                {
+                    ackStr = reader.ReadToEnd();
+                }
                 if (long.TryParse(ackStr, out long lastProcessed))
                 {
                     _lastProcessedId = lastProcessed;
@@ -144,7 +161,11 @@ public class FileBasedPipe
         }
         // ackファイルが存在しない、または読み取り失敗の場合は新規作成
         _lastProcessedId = 0;
-        File.WriteAllText(_ackPath, "0");
+        using (var ackFs = CreateWriteStream(_ackPath))
+        using (var writer = new StreamWriter(ackFs))
+        {
+            writer.Write("0");
+        }
     }
 
     // --- 送信機能 ---
@@ -156,6 +177,26 @@ public class FileBasedPipe
         }
     }
 
+    private FileStream CreateWriteStream(string path)
+    {
+        if (BypassCache)
+        {
+            // キャッシュバイパス: 新しいファイルハンドルを毎回オープンし、WriteThroughを使用
+            return new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.ReadWrite, bufferSize: 4096, FileOptions.WriteThrough);
+        }
+        return new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
+    }
+
+    private FileStream CreateReadStream(string path)
+    {
+        if (BypassCache)
+        {
+            // キャッシュバイパス: 新しいファイルハンドルを毎回オープン
+            return new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        }
+        return new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+    }
+
     public async Task SendSyncAsync()
     {
         try
@@ -163,7 +204,12 @@ public class FileBasedPipe
             // 1. Ackを読み込んでキューを掃除
             if (File.Exists(_ackPath))
             {
-                var ackStr = await File.ReadAllTextAsync(_ackPath);
+                string ackStr;
+                using (var fs = CreateReadStream(_ackPath))
+                using (var reader = new StreamReader(fs))
+                {
+                    ackStr = await reader.ReadToEndAsync();
+                }
                 if (long.TryParse(ackStr, out long lastAck))
                 {
                     lock (_queue) { _queue.RemoveAll(m => m.Id <= lastAck); }
@@ -177,7 +223,7 @@ public class FileBasedPipe
                 envelope.Messages = _queue.ToList();
             }
 
-            using var fs = new FileStream(_dataPath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
+            using var fs = CreateWriteStream(_dataPath);
             await JsonSerializer.SerializeAsync(fs, envelope, _options);
             await fs.FlushAsync();
         }
@@ -192,7 +238,7 @@ public class FileBasedPipe
             if (!File.Exists(_dataPath)) return;
 
             CommunicationEnvelope? env;
-            using (var fs = new FileStream(_dataPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            using (var fs = CreateReadStream(_dataPath))
             {
                 if (fs.Length == 0) return;
                 env = await JsonSerializer.DeserializeAsync<CommunicationEnvelope>(fs, _options);
@@ -217,11 +263,49 @@ public class FileBasedPipe
             if (hasNew)
             {
                 string tmp = _ackPath + ".tmp";
-                await File.WriteAllTextAsync(tmp, _lastProcessedId.ToString());
+                using (var tmpFs = CreateWriteStream(tmp))
+                using (var writer = new StreamWriter(tmpFs))
+                {
+                    await writer.WriteAsync(_lastProcessedId.ToString());
+                }
                 File.Move(tmp, _ackPath, true);
             }
         }
         catch (IOException) { }
         catch (JsonException) { }
+    }
+
+    // --- 終了検出・実行 ---
+    
+    /// <summary>
+    /// 受信者が終了したかを確認（Sender側で使用）
+    /// </summary>
+    public bool IsReceiverTerminated() => !File.Exists(_ackPath);
+
+    /// <summary>
+    /// 送信者が終了したかを確認（Receiver側で使用）
+    /// </summary>
+    public bool IsSenderTerminated() => !File.Exists(_dataPath);
+
+    /// <summary>
+    /// Senderとして終了通知（自分の所有ファイルを削除）
+    /// </summary>
+    public void TerminateAsSender()
+    {
+        if (File.Exists(_dataPath))
+        {
+            try { File.Delete(_dataPath); } catch (IOException) { }
+        }
+    }
+
+    /// <summary>
+    /// Receiverとして終了通知（自分の所有ファイルを削除）
+    /// </summary>
+    public void TerminateAsReceiver()
+    {
+        if (File.Exists(_ackPath))
+        {
+            try { File.Delete(_ackPath); } catch (IOException) { }
+        }
     }
 }
