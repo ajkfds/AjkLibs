@@ -123,8 +123,8 @@ public class FileBasedPipe
             try
             {
                 string ackStr;
-                using (var fs = CreateReadStream(_ackPath))
-                using (var reader = new StreamReader(fs))
+                using (var ackFs = CreateReadStream(_ackPath))
+                using (var reader = new StreamReader(ackFs))
                 {
                     ackStr = reader.ReadToEnd();
                 }
@@ -205,8 +205,8 @@ public class FileBasedPipe
             if (File.Exists(_ackPath))
             {
                 string ackStr;
-                using (var fs = CreateReadStream(_ackPath))
-                using (var reader = new StreamReader(fs))
+                using (var sendFs = CreateReadStream(_ackPath))
+                using (var reader = new StreamReader(sendFs))
                 {
                     ackStr = await reader.ReadToEndAsync();
                 }
