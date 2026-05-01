@@ -84,6 +84,7 @@ public class MessageJsonResolver : DefaultJsonTypeInfoResolver
 internal class MessageItem { public long Id { get; set; } public BasePayload Payload { get; set; } = null!; }
 internal class CommunicationEnvelope { public List<MessageItem> Messages { get; set; } = new(); }
 
+    
 /// <summary>
 /// FBAQプロトコルエンジン
 /// </summary>
@@ -95,6 +96,8 @@ public class FileBasedPipe
     private readonly List<MessageItem> _queue = new();
     private long _nextId = 1;
     private long _lastProcessedId = 0;
+
+    public System.Action<string>? OutputLogMessage { get; set; } = null;
 
     /// <summary>
     /// キャッシュバイパスモードを有効にする
@@ -262,13 +265,15 @@ public class FileBasedPipe
             // 処理済みIDをAckファイルに記録
             if (hasNew)
             {
-                string tmp = _ackPath + ".tmp";
-                using (var tmpFs = CreateWriteStream(tmp))
-                using (var writer = new StreamWriter(tmpFs))
-                {
-                    await writer.WriteAsync(_lastProcessedId.ToString());
-                }
-                File.Move(tmp, _ackPath, true);
+                if(OutputLogMessage!=null) OutputLogMessage($"Ack updated: {_lastProcessedId}"); 
+                await File.WriteAllTextAsync(_ackPath, _lastProcessedId.ToString());
+                //string tmp = _ackPath + ".tmp";
+                //using (var tmpFs = CreateWriteStream(tmp))
+                //using (var writer = new StreamWriter(tmpFs))
+                //{
+                //    await writer.WriteAsync(_lastProcessedId.ToString());
+                //}
+                //File.Move(tmp, _ackPath, true);
             }
         }
         catch (IOException) { }
