@@ -9,7 +9,7 @@
 
   <ItemGroup>
     <PackageReference Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.3" />
-    <PackageReference Include="Microsoft.VisualStudio.Threading" Version="18.7.23" />
+    <PackageReference Include="Microsoft.VisualStudio.Threading" Version="18.12.1" />
   </ItemGroup>
 
 </Project>
